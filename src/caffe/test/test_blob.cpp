@@ -1,5 +1,7 @@
 #include <vector>
 
+#include "boost/thread/thread.hpp"
+
 #include "gtest/gtest.h"
 
 #include "caffe/blob.hpp"
@@ -49,6 +51,16 @@ TYPED_TEST(BlobSimpleTest, TestReshape) {
   EXPECT_EQ(this->blob_->height(), 4);
   EXPECT_EQ(this->blob_->width(), 5);
   EXPECT_EQ(this->blob_->count(), 120);
+}
+
+TYPED_TEST(BlobSimpleTest, RecycleBlob) {
+  this->blob_->Reshape(128, 256, 64, 64);
+  this->blob_->cpu_data();
+  //boost::this_thread::sleep(boost::posix_time::seconds(3));
+  //this->blob_->recycle_gpu_data();
+  boost::this_thread::sleep(boost::posix_time::seconds(3));
+  
+  this->blob_->recycle_cpu_data();
 }
 
 TYPED_TEST(BlobSimpleTest, TestReshapeZero) {

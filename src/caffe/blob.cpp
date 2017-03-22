@@ -98,6 +98,23 @@ const Dtype* Blob<Dtype>::gpu_data() const {
   return (const Dtype*)data_->gpu_data();
 }
 
+// Deprecated
+template <typename Dtype>
+void Blob<Dtype>::recycle_cpu_data() {
+  CHECK(data_);
+  CHECK(diff_);
+  data_->recycle_cpu_data();
+  diff_->recycle_cpu_data();
+}
+
+template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_data() {
+  CHECK(data_);
+  CHECK(diff_);
+  data_->recycle_gpu_data();
+  diff_->recycle_gpu_data();
+}
+
 template <typename Dtype>
 const Dtype* Blob<Dtype>::cpu_diff() const {
   CHECK(diff_);

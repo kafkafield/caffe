@@ -22,6 +22,69 @@ SyncedMemory::~SyncedMemory() {
 #endif  // CPU_ONLY
 }
 
+void SyncedMemory::recycle_gpu_data() {
+  switch (head_) {
+  case UNINITIALIZED:
+    CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+    caffe_memset(size_, 0, cpu_ptr_);
+    head_ = HEAD_AT_CPU;
+    own_cpu_data_ = true;
+    break;
+  case HEAD_AT_GPU:
+#ifndef CPU_ONLY
+    if (cpu_ptr_ == NULL) {
+      CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+      own_cpu_data_ = true;
+    }
+    caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
+    cudaFree(gpu_ptr_);
+	head_ = HEAD_AT_CPU;
+#else
+    NO_GPU;
+#endif
+	break;
+  case HEAD_AT_CPU:
+  case SYNCED:
+    cudaFree(gpu_ptr_);
+	head_ = HEAD_AT_CPU;
+	break;
+  }
+  own_gpu_data_ = false;
+  gpu_ptr_ = NULL;
+}
+
+void SyncedMemory::recycle_cpu_data() {
+#ifndef CPU_ONLY
+  switch (head_) {
+  case UNINITIALIZED:
+    CUDA_CHECK(cudaGetDevice(&gpu_device_));
+    CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+    LOG(WARNING) << "Alloc GPU mem: " << size_;
+    caffe_gpu_memset(size_, 0, gpu_ptr_);
+    head_ = HEAD_AT_GPU;
+    own_gpu_data_ = true;
+    break;
+  case HEAD_AT_CPU:
+    if (gpu_ptr_ == NULL) {
+      CUDA_CHECK(cudaGetDevice(&gpu_device_));
+      CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+      LOG(WARNING) << "Alloc GPU mem: " << size_;
+      own_gpu_data_ = true;
+    }
+    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
+  case HEAD_AT_GPU:
+  case SYNCED:
+	free(cpu_ptr_);
+    head_ = HEAD_AT_GPU;
+    break;
+  }
+#else
+  NO_GPU;
+#endif
+  own_cpu_data_ = false;
+  cpu_ptr_ = NULL;
+}
+
 inline void SyncedMemory::to_cpu() {
   switch (head_) {
   case UNINITIALIZED:
@@ -54,6 +117,7 @@ inline void SyncedMemory::to_gpu() {
   case UNINITIALIZED:
     CUDA_CHECK(cudaGetDevice(&gpu_device_));
     CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+    LOG(WARNING) << "Alloc GPU mem: " << size_;
     caffe_gpu_memset(size_, 0, gpu_ptr_);
     head_ = HEAD_AT_GPU;
     own_gpu_data_ = true;
@@ -62,6 +126,7 @@ inline void SyncedMemory::to_gpu() {
     if (gpu_ptr_ == NULL) {
       CUDA_CHECK(cudaGetDevice(&gpu_device_));
       CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+      LOG(WARNING) << "Alloc GPU mem: " << size_;
       own_gpu_data_ = true;
     }
     caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
@@ -144,6 +209,7 @@ void SyncedMemory::async_gpu_push(const cudaStream_t& stream) {
   if (gpu_ptr_ == NULL) {
     CUDA_CHECK(cudaGetDevice(&gpu_device_));
     CUDA_CHECK(cudaMalloc(&gpu_ptr_, size_));
+    LOG(WARNING) << "Alloc GPU mem: " << size_;
     own_gpu_data_ = true;
   }
   const cudaMemcpyKind put = cudaMemcpyHostToDevice;

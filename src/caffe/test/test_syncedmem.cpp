@@ -1,5 +1,7 @@
 #include <vector>
 
+#include "boost/thread/thread.hpp"
+
 #include "gtest/gtest.h"
 
 #include "caffe/common.hpp"
@@ -30,6 +32,16 @@ TEST_F(SyncedMemoryTest, TestAllocationCPUGPU) {
   EXPECT_TRUE(mem.gpu_data());
   EXPECT_TRUE(mem.mutable_cpu_data());
   EXPECT_TRUE(mem.mutable_gpu_data());
+}
+
+TEST_F(SyncedMemoryTest, TestRecycleCPUGPU) {
+  SyncedMemory mem(1000000000);
+  mem.gpu_data();
+  boost::this_thread::sleep( boost::posix_time::seconds(3));
+  mem.recycle_gpu_data();
+  boost::this_thread::sleep( boost::posix_time::seconds(3));
+  mem.recycle_cpu_data();
+  boost::this_thread::sleep( boost::posix_time::seconds(3));
 }
 
 #endif

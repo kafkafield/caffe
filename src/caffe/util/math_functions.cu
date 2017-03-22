@@ -16,6 +16,9 @@ void caffe_gpu_gemm<float>(const CBLAS_TRANSPOSE TransA,
     const float alpha, const float* A, const float* B, const float beta,
     float* C) {
   // Note that cublas follows fortran order.
+
+  // LOG(WARNING) << "M=" << M << " N=" << N << " K=" << K;
+
   int lda = (TransA == CblasNoTrans) ? K : M;
   int ldb = (TransB == CblasNoTrans) ? N : K;
   cublasOperation_t cuTransA =
