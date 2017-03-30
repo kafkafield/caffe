@@ -241,6 +241,9 @@ TYPED_TEST(ConvolutionLayerTest, TestSimpleConvolution) {
   convolution_param->mutable_weight_filler()->set_type("gaussian");
   convolution_param->mutable_bias_filler()->set_type("constant");
   convolution_param->mutable_bias_filler()->set_value(0.1);
+
+  convolution_param->set_bias_term(false);
+
   shared_ptr<Layer<Dtype> > layer(
       new ConvolutionLayer<Dtype>(layer_param));
   layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
@@ -252,9 +255,24 @@ TYPED_TEST(ConvolutionLayerTest, TestSimpleConvolution) {
       this->MakeReferenceTop(this->blob_top_));
   top_data = this->blob_top_->cpu_data();
   ref_top_data = this->ref_blob_top_->cpu_data();
+  printf("%d %d %d %d\n",  this->blob_top_->count(0,1), this->blob_top_->count(1,2), this->blob_top_->count(2,3),this->blob_top_->count(3,4) );
+
   for (int i = 0; i < this->blob_top_->count(); ++i) {
     EXPECT_NEAR(top_data[i], ref_top_data[i], 1e-4);
   }
+  /*
+  int bs = this->blob_top_->count(0,1);
+  int ni = this->blob_top_->count(1,2);
+  int hw = this->blob_top_->count(2);
+  for (int i = 0; i < bs; ++i)
+  for (int j = 0; j < ni; ++j)
+  for (int k = 0; k < hw; ++k)
+  {
+	printf("%d\n", i*ni*hw+j*hw+k);
+	EXPECT_NEAR(top_data[j*bs*hw+i*hw+k], ref_top_data[i*ni*hw+j*hw+k], 1e-4);
+  }
+  */
+
   caffe_conv(this->blob_bottom_2_, convolution_param, layer->blobs(),
       this->MakeReferenceTop(this->blob_top_2_));
   top_data = this->blob_top_2_->cpu_data();
@@ -262,6 +280,18 @@ TYPED_TEST(ConvolutionLayerTest, TestSimpleConvolution) {
   for (int i = 0; i < this->blob_top_->count(); ++i) {
     EXPECT_NEAR(top_data[i], ref_top_data[i], 1e-4);
   }
+  /*
+  bs = this->blob_top_2_->count(0,1);
+  ni = this->blob_top_2_->count(1,2);
+  hw = this->blob_top_2_->count(2);
+  for (int i = 0; i < bs; ++i)
+  for (int j = 0; j < ni; ++j)
+  for (int k = 0; k < hw; ++k)
+  {
+	printf("%d\n", i*ni*hw+j*hw+k);
+	EXPECT_NEAR(top_data[j*bs*hw+i*hw+k], ref_top_data[i*ni*hw+j*hw+k], 1e-4);
+  }
+  */
 }
 
 TYPED_TEST(ConvolutionLayerTest, TestDilatedConvolution) {

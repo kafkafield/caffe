@@ -427,6 +427,20 @@ class Layer {
     }
   }
 
+  inline void Recycle_forward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom) {}
+  inline void Recycle_backward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom) {} 
+  inline void Prepare_forward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom) {}
+  inline void Prepare_backward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom) {} 
+
+  inline void Recycle_forward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom, 
+	cudaStream_t stream) {}
+  inline void Recycle_backward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom,  
+	cudaStream_t stream) {}
+  inline void Prepare_forward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom, 
+	cudaStream_t stream) {}
+  inline void Prepare_backward_gpu(const vector<Blob<Dtype>*> & top, const vector<Blob<Dtype>*> & bottom,  
+	cudaStream_t stream) {}
+
  private:
   /** Whether this layer is actually shared by other nets*/
   bool is_shared_;

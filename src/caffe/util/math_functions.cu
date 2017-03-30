@@ -83,6 +83,18 @@ void caffe_gpu_memcpy(const size_t N, const void* X, void* Y) {
   }
 }
 
+void caffe_gpu_memcpy_push(const size_t N, const void* X, void* Y) {
+  if (X != Y) {
+    CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyHostToDevice));  // NOLINT(caffe/alt_fn)
+  }
+}
+
+void caffe_gpu_memcpy_pull(const size_t N, const void* X, void* Y) {
+  if (X != Y) {
+    CUDA_CHECK(cudaMemcpy(Y, X, N, cudaMemcpyDeviceToHost));  // NOLINT(caffe/alt_fn)
+  }
+}
+
 template <>
 void caffe_gpu_scal<float>(const int N, const float alpha, float *X) {
   CUBLAS_CHECK(cublasSscal(Caffe::cublas_handle(), N, &alpha, X, 1));

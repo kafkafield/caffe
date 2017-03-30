@@ -379,6 +379,69 @@ void PoolingLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   CUDA_POST_KERNEL_CHECK;
 }
 
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Recycle_forward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom) {
+  bottom[0]->recycle_gpu_data();
+  rand_idx_.recycle_gpu_all();
+  max_idx_.recycle_gpu_all();
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Recycle_backward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom) {
+  top[0]->recycle_gpu_diff();
+  rand_idx_.recycle_gpu_all();
+  max_idx_.recycle_gpu_all();
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Prepare_forward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom) {
+  // bottom[0]->recycle_gpu_data(); bottom must be hot. 
+  rand_idx_.gpu_data();
+  max_idx_.gpu_data();
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Prepare_backward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom) {
+  // top[0]->recycle_gpu_diff();
+  rand_idx_.gpu_data();
+  max_idx_.gpu_data();
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Recycle_forward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom, cudaStream_t stream) {
+  bottom[0]->recycle_gpu_data(stream);
+  rand_idx_.recycle_gpu_all(stream);
+  max_idx_.recycle_gpu_all(stream);
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Recycle_backward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom, cudaStream_t stream) {
+  top[0]->recycle_gpu_diff(stream);
+  rand_idx_.recycle_gpu_all(stream);
+  max_idx_.recycle_gpu_all(stream);
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Prepare_forward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom, cudaStream_t stream) {
+  // bottom[0]->recycle_gpu_data(); bottom must be hot. 
+  rand_idx_.gpu_data();
+  max_idx_.gpu_data();
+}
+
+template <typename Dtype>
+inline void PoolingLayer<Dtype>::Prepare_backward_gpu(const vector<Blob<Dtype>*>& top, 
+	const vector<Blob<Dtype>*>& bottom, cudaStream_t stream) {
+  // top[0]->recycle_gpu_diff();
+  rand_idx_.gpu_data();
+  max_idx_.gpu_data();
+}
 
 INSTANTIATE_LAYER_GPU_FUNCS(PoolingLayer);
 

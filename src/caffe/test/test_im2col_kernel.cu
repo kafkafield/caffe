@@ -22,6 +22,15 @@ __global__ void im2col_gpu_kernel(const int n, const Dtype* data_im,
     const int height_col, const int width_col,
     Dtype* data_col);
 
+template <typename Dtype>
+__global__ void im2col_gpu_kernel_big(const int n, const Dtype* data_im,
+    const int height, const int width, const int kernel_h, const int kernel_w,
+    const int pad_h, const int pad_w,
+    const int stride_h, const int stride_w,
+    const int dilation_h, const int dilation_w,
+    const int height_col, const int width_col,
+    Dtype* data_col, int bs, int ni);
+
 template <typename Dtype, int num_axes>
 __global__ void im2col_nd_gpu_kernel(const int n, const Dtype* data_im,
     const int* im_shape, const int* col_shape,
@@ -153,6 +162,71 @@ TYPED_TEST(Im2colKernelTest, Test2D) {
       }
     }
   }
+}
+
+TYPED_TEST(Im2colKernelTest, Test2D_BIG) {
+  // Reshape the blobs to correct size for im2col output
+  this->blob_top_->Reshape(
+          this->channels_ * this->kernel_size_ * this->kernel_size_,
+          this->blob_bottom_->num(),
+		  this->height_col_,
+          this->width_col_);
+
+  this->blob_top_cpu_->Reshape(
+          this->channels_ * this->kernel_size_ * this->kernel_size_,
+          this->blob_bottom_->num(), 
+		  this->height_col_,
+          this->width_col_);
+
+  const TypeParam* bottom_data = this->blob_bottom_->gpu_data();
+  TypeParam* top_data = this->blob_top_->mutable_gpu_data();
+  TypeParam* cpu_data = this->blob_top_cpu_->mutable_cpu_data();
+
+  // CPU Version
+    im2col_cpu_big(this->blob_bottom_->cpu_data() + this->blob_bottom_->offset(0),
+      this->channels_, this->height_, this->width_,
+      this->kernel_size_, this->kernel_size_, this->pad_, this->pad_,
+      this->stride_, this->stride_, this->dilation_, this->dilation_,
+      cpu_data + this->blob_top_cpu_->offset(0), this->blob_bottom_->num());
+
+  // GPU version
+  int num_kernels = this->channels_ * this->height_col_ * this->width_col_ 
+	* this->blob_bottom_->num();
+  int default_grid_dim = CAFFE_GET_BLOCKS(num_kernels);
+
+  im2col_gpu_kernel_big<TypeParam><<<default_grid_dim, CAFFE_CUDA_NUM_THREADS>>>(
+    num_kernels, bottom_data + this->blob_bottom_->offset(0),
+    this->height_, this->width_, this->kernel_size_, this->kernel_size_,
+    this->pad_, this->pad_, this->stride_, this->stride_,
+    this->dilation_, this->dilation_,
+    this->height_col_, this->width_col_,
+    top_data + this->blob_top_->offset(0), this->blob_bottom_->num(), this->channels_);
+  CUDA_POST_KERNEL_CHECK;
+  
+    // Compare result against CPU version
+	// Print the result
+	/*
+	int k = 0;
+	FILE * f1 = fopen("cpu.log", "w");
+	FILE * f2 = fopen("gpu.log", "w");
+	for (int i = 0; i < this->blob_top_->count(0,1); i++) {
+		for (int j = 0; j < this->blob_top_->count(1); j++) {
+			fprintf(f1, "%f\t", cpu_data[k]);
+			fprintf(f2, "%f\t", this->blob_top_->cpu_data()[k++]);
+		}
+		fprintf(f1, "\n");
+		fprintf(f2, "\n");
+	}
+	*/
+    for (int i = 0; i < this->blob_top_->count(); ++i) {
+      TypeParam cpuval = cpu_data[i];
+      TypeParam gpuval = this->blob_top_->cpu_data()[i];
+      EXPECT_EQ(cpuval, gpuval);
+      if (cpuval != gpuval) { 
+	    printf("%d\n", i);
+        break;
+      }
+    }
 }
 
 TYPED_TEST(Im2colKernelTest, TestND) {

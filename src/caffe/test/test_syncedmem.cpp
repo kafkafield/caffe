@@ -40,8 +40,7 @@ TEST_F(SyncedMemoryTest, TestRecycleCPUGPU) {
   boost::this_thread::sleep( boost::posix_time::seconds(3));
   mem.recycle_gpu_data();
   boost::this_thread::sleep( boost::posix_time::seconds(3));
-  mem.recycle_cpu_data();
-  boost::this_thread::sleep( boost::posix_time::seconds(3));
+  SyncedMemory mem1(1000000000);
 }
 
 #endif

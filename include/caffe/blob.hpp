@@ -223,7 +223,12 @@ class Blob {
   const Dtype* cpu_diff() const;
   const Dtype* gpu_diff() const;
   void recycle_cpu_data();
+  void recycle_gpu_all();
   void recycle_gpu_data();
+  void recycle_gpu_diff();
+  void recycle_gpu_all(cudaStream_t);
+  void recycle_gpu_data(cudaStream_t);
+  void recycle_gpu_diff(cudaStream_t);
   Dtype* mutable_cpu_data();
   Dtype* mutable_gpu_data();
   Dtype* mutable_cpu_diff();

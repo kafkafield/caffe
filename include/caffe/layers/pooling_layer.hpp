@@ -44,6 +44,20 @@ class PoolingLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
+  inline void Recycle_forward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom);
+  inline void Recycle_backward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom);
+  inline void Prepare_forward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom);
+  inline void Prepare_backward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom);
+
+  inline void Recycle_forward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom, 
+	cudaStream_t stream);
+  inline void Recycle_backward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom, 
+	cudaStream_t stream);
+  inline void Prepare_forward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom, 
+	cudaStream_t stream);
+  inline void Prepare_backward_gpu(const vector<Blob<Dtype>*>& top, const vector<Blob<Dtype>*>& bottom, 
+	cudaStream_t stream);
+
   int kernel_h_, kernel_w_;
   int stride_h_, stride_w_;
   int pad_h_, pad_w_;

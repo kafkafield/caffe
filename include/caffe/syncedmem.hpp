@@ -2,6 +2,7 @@
 #define CAFFE_SYNCEDMEM_HPP_
 
 #include <cstdlib>
+#include <cstdio>
 
 #include "caffe/common.hpp"
 
@@ -15,6 +16,7 @@ namespace caffe {
 inline void CaffeMallocHost(void** ptr, size_t size, bool* use_cuda) {
 #ifndef CPU_ONLY
   if (Caffe::mode() == Caffe::GPU) {
+	// printf("Pinned memory. \n");
     CUDA_CHECK(cudaMallocHost(ptr, size));
     *use_cuda = true;
     return;
@@ -61,6 +63,7 @@ class SyncedMemory {
   void* mutable_gpu_data();
   void recycle_cpu_data();
   void recycle_gpu_data();
+  void recycle_gpu_data(cudaStream_t);
   enum SyncedHead { UNINITIALIZED, HEAD_AT_CPU, HEAD_AT_GPU, SYNCED };
   SyncedHead head() { return head_; }
   size_t size() { return size_; }

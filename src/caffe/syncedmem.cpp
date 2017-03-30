@@ -32,11 +32,15 @@ void SyncedMemory::recycle_gpu_data() {
     break;
   case HEAD_AT_GPU:
 #ifndef CPU_ONLY
+    cudaStream_t stream;
+	cudaStreamCreate(&stream);
     if (cpu_ptr_ == NULL) {
       CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
       own_cpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
+	CUDA_CHECK(cudaMemcpyAsync(cpu_ptr_, gpu_ptr_, size_, cudaMemcpyDeviceToHost, stream));
+	cudaDeviceSynchronize();
+    // caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
     cudaFree(gpu_ptr_);
 	head_ = HEAD_AT_CPU;
 #else
@@ -53,6 +57,40 @@ void SyncedMemory::recycle_gpu_data() {
   gpu_ptr_ = NULL;
 }
 
+void SyncedMemory::recycle_gpu_data(cudaStream_t stream) {
+  switch (head_) {
+  case UNINITIALIZED:
+    CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+    caffe_memset(size_, 0, cpu_ptr_);
+    head_ = HEAD_AT_CPU;
+    own_cpu_data_ = true;
+    break;
+  case HEAD_AT_GPU:
+#ifndef CPU_ONLY
+    if (cpu_ptr_ == NULL) {
+      CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
+      own_cpu_data_ = true;
+    }
+	CUDA_CHECK(cudaMemcpyAsync(cpu_ptr_, gpu_ptr_, size_, cudaMemcpyDeviceToHost, stream));
+	cudaDeviceSynchronize();
+    // caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
+    cudaFree(gpu_ptr_);
+	head_ = HEAD_AT_CPU;
+#else
+    NO_GPU;
+#endif
+	break;
+  case HEAD_AT_CPU:
+  case SYNCED:
+    cudaFree(gpu_ptr_);
+	head_ = HEAD_AT_CPU;
+	break;
+  }
+  own_gpu_data_ = false;
+  gpu_ptr_ = NULL;
+}
+
+// Deprecated
 void SyncedMemory::recycle_cpu_data() {
 #ifndef CPU_ONLY
   switch (head_) {
@@ -99,7 +137,7 @@ inline void SyncedMemory::to_cpu() {
       CaffeMallocHost(&cpu_ptr_, size_, &cpu_malloc_use_cuda_);
       own_cpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, gpu_ptr_, cpu_ptr_);
+    caffe_gpu_memcpy_pull(size_, gpu_ptr_, cpu_ptr_);
     head_ = SYNCED;
 #else
     NO_GPU;
@@ -129,7 +167,7 @@ inline void SyncedMemory::to_gpu() {
       LOG(WARNING) << "Alloc GPU mem: " << size_;
       own_gpu_data_ = true;
     }
-    caffe_gpu_memcpy(size_, cpu_ptr_, gpu_ptr_);
+    caffe_gpu_memcpy_push(size_, cpu_ptr_, gpu_ptr_);
     head_ = SYNCED;
     break;
   case HEAD_AT_GPU:

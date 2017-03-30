@@ -108,11 +108,43 @@ void Blob<Dtype>::recycle_cpu_data() {
 }
 
 template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_all() {
+  CHECK(data_);
+  data_->recycle_gpu_data();
+  CHECK(diff_);
+  diff_->recycle_gpu_data();
+}
+
+template <typename Dtype>
 void Blob<Dtype>::recycle_gpu_data() {
   CHECK(data_);
-  CHECK(diff_);
   data_->recycle_gpu_data();
+}
+
+template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_diff() {
+  CHECK(diff_);
   diff_->recycle_gpu_data();
+}
+
+template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_all(cudaStream_t stream) {
+  CHECK(data_);
+  data_->recycle_gpu_data(stream);
+  CHECK(diff_);
+  diff_->recycle_gpu_data(stream);
+}
+
+template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_data(cudaStream_t stream) {
+  CHECK(data_);
+  data_->recycle_gpu_data(stream);
+}
+
+template <typename Dtype>
+void Blob<Dtype>::recycle_gpu_diff(cudaStream_t stream) {
+  CHECK(diff_);
+  diff_->recycle_gpu_data(stream);
 }
 
 template <typename Dtype>
