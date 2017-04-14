@@ -337,6 +337,7 @@ int time() {
   vector<string> stages = get_stages_from_flags();
 
   // Set device id and mode
+  /*
   vector<int> gpus;
   get_gpus(&gpus);
   if (gpus.size() != 0) {
@@ -347,6 +348,9 @@ int time() {
     LOG(INFO) << "Use CPU.";
     Caffe::set_mode(Caffe::CPU);
   }
+  */
+
+  Caffe::set_mod(Caffe::CPU);
   // Instantiate the caffe net.
   Net<float> caffe_net(FLAGS_model, phase, FLAGS_level, &stages);
 
@@ -377,17 +381,94 @@ int time() {
   std::vector<double> backward_time_per_layer(layers.size(), 0.0);
   double forward_time = 0.0;
   double backward_time = 0.0;
+
+  //Everythings are in the CPU, and now we choose the gpu
+  vector<int> gpus;
+  get_gpus(&gpus);
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+    Caffe::SetDevice(gpus[0]);
+    Caffe::set_mode(Caffe::GPU);
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+
+  cudaStream_t stream;
   for (int j = 0; j < FLAGS_iterations; ++j) {
     Timer iter_timer;
     iter_timer.Start();
     forward_timer.Start();
+
+    /* Forward Change */
+    int bottom_idx = 0;
+    for (int blob_idx = 0; blob_idx < bottom_vecs[0].size(); blob_idx++) {
+      bottom_vecs[bottom_idx][blob_idx]->gpu_data();
+    }
+
+    vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[0]->blobs();
+    for (int i = 0; i < layer_blobs.size(); i++) {
+      layer_blobs[i]->gpu_data();
+    }
+
+    for (int blob_idx = 0; blob_idx < top_vecs[0].size(); blob_idx++) {
+      top_vecs[bottom_idx][blob_idx]->gpu_data();
+    }
+
     for (int i = 0; i < layers.size(); ++i) {
       timer.Start();
+#pragma omp parallel sections
+  {
+#pragma omp section
+    {
+      if (i > 0) {
+        for (int blob_idx = 0; blob_idx < bottom_vecs[i - 1].size(); blob_idx++) {
+          bottom_vecs[i - 1]->recycle_gpu_data(stream);
+        }
+
+        vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[i - 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); i++) {
+          layer_blobs[blob_idx]->recycle_gpu_data(stream);
+        }
+      }
+    }
+#pragma omp section
+    {
       layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
+    }
+#pragma omp section
+    {
+      if (i + 1 < layers.size()) {
+        for (int blob_idx = 0; blob_idx < top_vecs[i + 1].size(); blob_idx++) {
+          top_vecs[i + 1]->gpu_data();
+        }
+
+        vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[i + 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); i++) {
+          layer_blobs[blob_idx]->gpu_data();
+        }
+      }
+    }
+  }
+      //layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
       forward_time_per_layer[i] += timer.MicroSeconds();
       LOG(WARNING) << "Layer Type: "<< layers[i]->type();
-	}
+    }
     forward_time += forward_timer.MicroSeconds();
+    
+    /*
+    int top_idx = layers.size() - 1;
+    for (int blob_idx = 0; blob_idx < bottom_vecs[top_idx].size(); blob_idx++) {
+      bottom_vecs[top_idx][blob_idx]->recycle_gpu_data(stream);
+    }
+
+    for (int blob_idx = 0; blob_idx < top_vecs[top_idx].size(); blob_idx++) {
+      top_vecs[top_idx][blob_idx]->recycle_gpu_data(stream);
+    } 
+    */  
+
+    break;
+
     backward_timer.Start();
     for (int i = layers.size() - 1; i >= 0; --i) {
       timer.Start();
@@ -399,6 +480,8 @@ int time() {
     LOG(INFO) << "Iteration: " << j + 1 << " forward-backward time: "
       << iter_timer.MilliSeconds() << " ms.";
   }
+
+
   LOG(INFO) << "Average time per layer: ";
   for (int i = 0; i < layers.size(); ++i) {
     const caffe::string& layername = layers[i]->layer_param().name();
