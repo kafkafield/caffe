@@ -6,6 +6,7 @@ namespace bp = boost::python;
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <cstdio>
 #include <cstring>
 #include <map>
 #include <string>
@@ -350,7 +351,7 @@ int time() {
   }
   */
 
-  Caffe::set_mod(Caffe::CPU);
+  Caffe::set_mode(Caffe::CPU);
   // Instantiate the caffe net.
   Net<float> caffe_net(FLAGS_model, phase, FLAGS_level, &stages);
 
@@ -372,6 +373,22 @@ int time() {
       caffe_net.bottom_need_backward();
   LOG(INFO) << "*** Benchmark begins ***";
   LOG(INFO) << "Testing for " << FLAGS_iterations << " iterations.";
+  
+  
+  //Everythings are in the CPU, and now we choose the gpu
+  vector<int> gpus;
+  get_gpus(&gpus);
+  if (gpus.size() != 0) {
+    LOG(INFO) << "Use GPU with device ID " << gpus[0];
+    Caffe::SetDevice(gpus[0]);
+	//LOG(INFO) << "1";
+    Caffe::set_mode(Caffe::GPU);
+	//LOG(INFO) << "2";
+  } else {
+    LOG(INFO) << "Use CPU.";
+    Caffe::set_mode(Caffe::CPU);
+  }
+  
   Timer total_timer;
   total_timer.Start();
   Timer forward_timer;
@@ -382,19 +399,14 @@ int time() {
   double forward_time = 0.0;
   double backward_time = 0.0;
 
-  //Everythings are in the CPU, and now we choose the gpu
-  vector<int> gpus;
-  get_gpus(&gpus);
-  if (gpus.size() != 0) {
-    LOG(INFO) << "Use GPU with device ID " << gpus[0];
-    Caffe::SetDevice(gpus[0]);
-    Caffe::set_mode(Caffe::GPU);
-  } else {
-    LOG(INFO) << "Use CPU.";
-    Caffe::set_mode(Caffe::CPU);
-  }
 
+  //LOG(INFO) << "FINISH";
   cudaStream_t stream;
+  cudaStreamCreate(&stream);
+  LOG(INFO) << "Please Enter";
+  int tmp = scanf("\n");
+  LOG(INFO) << "Ready";
+  tmp = tmp + 1;
   for (int j = 0; j < FLAGS_iterations; ++j) {
     Timer iter_timer;
     iter_timer.Start();
@@ -406,7 +418,7 @@ int time() {
       bottom_vecs[bottom_idx][blob_idx]->gpu_data();
     }
 
-    vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[0]->blobs();
+    vector<shared_ptr<Blob<float> > > layer_blobs = layers[0]->blobs();
     for (int i = 0; i < layer_blobs.size(); i++) {
       layer_blobs[i]->gpu_data();
     }
@@ -414,7 +426,7 @@ int time() {
     for (int blob_idx = 0; blob_idx < top_vecs[0].size(); blob_idx++) {
       top_vecs[bottom_idx][blob_idx]->gpu_data();
     }
-
+	LOG(INFO) << "Start";
     for (int i = 0; i < layers.size(); ++i) {
       timer.Start();
 #pragma omp parallel sections
@@ -422,12 +434,14 @@ int time() {
 #pragma omp section
     {
       if (i > 0) {
-        for (int blob_idx = 0; blob_idx < bottom_vecs[i - 1].size(); blob_idx++) {
-          bottom_vecs[i - 1]->recycle_gpu_data(stream);
-        }
+		if (strcmp(layers[i - 1]->type(), "ReLU")) {
+			for (int blob_idx = 0; blob_idx < bottom_vecs[i - 1].size(); blob_idx++) {
+				bottom_vecs[i - 1][blob_idx]->recycle_gpu_data(stream);
+			}
+		}
 
-        vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[i - 1]->blobs();
-        for (int blob_idx = 0; blob_idx < layer_blobs.size(); i++) {
+        vector<shared_ptr<Blob<float> > > layer_blobs = layers[i - 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); blob_idx++) {
           layer_blobs[blob_idx]->recycle_gpu_data(stream);
         }
       }
@@ -435,19 +449,22 @@ int time() {
 #pragma omp section
     {
       layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
+	  LOG(INFO) << "Cal FINISH";
     }
 #pragma omp section
     {
       if (i + 1 < layers.size()) {
         for (int blob_idx = 0; blob_idx < top_vecs[i + 1].size(); blob_idx++) {
-          top_vecs[i + 1]->gpu_data();
+          top_vecs[i + 1][blob_idx]->gpu_data();
         }
 
-        vector<shared_ptr<Blob<Dtype> > > layer_blobs = layers[i + 1]->blobs();
-        for (int blob_idx = 0; blob_idx < layer_blobs.size(); i++) {
+        vector<shared_ptr<Blob<float> > > layer_blobs = layers[i + 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); blob_idx++) {
           layer_blobs[blob_idx]->gpu_data();
         }
       }
+
+	  LOG(INFO) << "ALLOC FINISH";
     }
   }
       //layers[i]->Forward(bottom_vecs[i], top_vecs[i]);
@@ -467,6 +484,9 @@ int time() {
     } 
     */  
 
+	//printf("please enter:");
+	LOG(INFO) << "Please Enter";
+	tmp = scanf("\n");
     break;
 
     backward_timer.Start();
