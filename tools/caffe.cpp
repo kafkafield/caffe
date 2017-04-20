@@ -492,10 +492,45 @@ int time() {
     backward_timer.Start();
     for (int i = layers.size() - 1; i >= 0; --i) {
       timer.Start();
+#pragma omp parallel sections
+  {
+#pragma omp section
+    {
+      if (i + 1 < layers.size()) {
+        if (strcmp(strcmp(layers[i + 1]->type(), "ReLU")) {
+          for (int blob_idx = 0; blob_idx < top_vecs[i + 1].size(); blob_idx ++) {
+            top_vecs[i + 1][blob_idx]->recycle_gpu_data(stream);
+          }
+        }
+
+        vector<shared_ptr<Blob<float> > > layer_blobs = layers[i + 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); blob_idx ++) {
+          layer_blobs[blob_idx]->recycle_gpu_data(stream); 
+        }
+      }
+    }
+#pragma omp section
+    {
       layers[i]->Backward(top_vecs[i], bottom_need_backward[i],
                           bottom_vecs[i]);
-      backward_time_per_layer[i] += timer.MicroSeconds();
     }
+#pragma omp section
+    {
+      if (i - 1 > 0) {
+        for (int blob_idx = 0; blob_idx < bottom_vecs[i - 1].size(); blob_idx++) {
+          bottom_vecs[i - 1][blob_idx]->gpu_data();
+        }
+
+        vector<shared_ptr<Blob<float> > > layer_blobs = layers[i - 1]->blobs();
+        for (int blob_idx = 0; blob_idx < layer_blobs.size(); blob_idx++) {
+          layer_blobs[blob_idx]->gpu_data(); 
+      }
+    }
+  }
+      backward_time_per_layer[i] += timer.MicroSeconds();
+      LOG(WARNING) << "Layer Type: "<< layers[i]->type();
+    }
+
     backward_time += backward_timer.MicroSeconds();
     LOG(INFO) << "Iteration: " << j + 1 << " forward-backward time: "
       << iter_timer.MilliSeconds() << " ms.";
